@@ -1,0 +1,34 @@
+varnishtest "Test Signed request decoding"
+
+server s1 {
+       rxreq
+       txresp
+} -start
+
+varnish v1 -vcl+backend {
+    import signed_request from "${vmod_topbuild}/src/.libs/libvmod_signed_request.so";
+
+    sub vcl_recv {
+	set req.http.sigreq = "FFbdjm8rZkOsXWQTGg4UIiVe7cITauEXalp0m4cjue4.eyJhbGdvcml0aG0iOiJITUFDLVNIQTI1NiIsImV4cGlyZXMiOjEzNDQ0MzQ0MDAsImlzc3VlZF9hdCI6MTM0NDQyOTY5NSwib2F1dGhfdG9rZW4iOiJBQUFCb08zcjFqRWdCQU40RHVEcWlMVUkyOGZMdVpDSUVIeUNtWVN1am5ISExobTBRTXJkZHpoUFJlZDljbFA2U2doa0lrUVVxb010YkJ5ZjdMTkJ2UWxjSWozdGdCeEhXTkxjS1ZCS0VUYUlwa3piOUwiLCJwYWdlIjp7ImlkIjoiMjI2NzEzNDA0MDk3NDc2IiwibGlrZWQiOnRydWUsImFkbWluIjp0cnVlfSwidXNlciI6eyJjb3VudHJ5IjoiZnIiLCJsb2NhbGUiOiJlbl9VUyIsImFnZSI6eyJtaW4iOjIxfX0sInVzZXJfaWQiOiIxMDAwMDE3MzMyMjE3NzEifQ";
+        signed_request.parse();
+    }
+
+    sub vcl_deliver {
+        set resp.http.page_id = signed_request.get_page_id();
+        set resp.http.locale = signed_request.get_locale();
+        set resp.http.is_admin = signed_request.get_is_admin();
+        set resp.http.app_data = signed_request.get_app_data();
+        signed_request.free_all();
+    }
+} -start
+
+client c1 {
+    txreq -url "/"
+    rxresp
+    expect resp.http.page_id == "226713404097476"
+    expect resp.http.locale  == "en_US"
+    expect resp.http.is_admin  == "true"
+    expect resp.http.app_data  == ""
+}
+
+client c1 -run

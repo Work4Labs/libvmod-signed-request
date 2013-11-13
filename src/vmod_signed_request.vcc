@@ -1,0 +1,10 @@
+Module signed_request
+Init init_function
+
+Function VOID parse()
+Function STRING get_page_id()
+Function STRING get_is_liked()
+Function STRING get_locale()
+Function STRING get_is_admin()
+Function STRING get_app_data()
+Function VOID free_all()

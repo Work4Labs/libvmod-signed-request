@@ -1,0 +1,30 @@
+varnishtest "Test invalid signed request"
+
+server s1 {
+       rxreq
+       txresp
+} -start
+
+varnish v1 -vcl+backend {
+    import signed_request from "${vmod_topbuild}/src/.libs/libvmod_signed_request.so";
+
+    sub vcl_recv {
+    set req.http.sigreq = "this is not a valid signed_request";
+        signed_request.parse();
+    }
+
+    sub vcl_deliver {
+        set resp.http.page_id = signed_request.get_page_id();
+        set resp.http.locale = signed_request.get_locale();
+        signed_request.free_all();
+    }
+} -start
+
+client c1 {
+    txreq -url "/"
+    rxresp
+    expect resp.http.page_id == ""
+    expect resp.http.locale  == "en_US"
+}
+
+client c1 -run
