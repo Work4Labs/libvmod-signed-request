@@ -77,23 +77,14 @@ char* split(const char* string, int n)
     return res;
 }
 
-// Replaces occurrences of from by to
-void replace(char* string, char from, char to)
-{
-    unsigned int n = strlen(string);
-    int i;
-    for (i=0; i<n; i=i+1)
-    {
-        if (string[i] == from) {
-            string[i] = to;
-        }
-    }
-}
-
 void base64UrlDecode(char* string, char* outstring)
 {
-    replace(string, '-', '+');
-    replace(string, '_', '/');
+    // we need to replace '-' (resp. '_') by '+' (resp. '/')
+    unsigned int i, n = strlen(string);
+    for (i = 0; i != n; i++) {
+        if (string[i] == '-') string[i] = '+';
+        else if (string[i] == '_') string[i] = '/';
+    }
     b64_decode(string, outstring);
 }
 
@@ -157,12 +148,10 @@ void vmod_parse(struct sess *sp)
 {
     struct w4uSignedRequest *req;
     char buf[64];
-    buf[0] = 0;
-    char base64decoded[1024] = "";
-
+    char *base64decoded;
     const char *signed_request = VRT_GetHdr(sp, HDR_REQ, "\007sigreq:");
 
-    // Allocate memory
+    buf[0] = 0;
     ALLOC_OBJ(req, VMOD_SIGNED_MAGIC);
     AN(req);
 
@@ -182,21 +171,31 @@ void vmod_parse(struct sess *sp)
         char *payload = split(signed_request, 1);
 
         // Ensure payload is not null
-        payload = payload ?: "";
+        if (!payload) payload = "";
 
         // char *decoded_sig = base64UrlDecode(encoded_sig);
-        base64UrlDecode(payload, base64decoded);
+        // the base64-encoded version of a string is always longer
+        // than the string itself
+        base64decoded = (char*) malloc((strlen(payload) + 1) * sizeof(char));
 
-        cJSON* json = cJSON_Parse(base64decoded);
+        if (base64decoded) {
+            base64UrlDecode(payload, base64decoded);
 
-        if (json) {
-            app_data = getAppData(json);
-            page_id  = getPageId(json);
-            locale   = getLocale(json);
-            is_admin = getIsAdmin(json);
-            is_liked = getIsLiked(json);
+            cJSON* json = cJSON_Parse(base64decoded);
+
+            if (json) {
+                app_data = getAppData(json);
+                page_id  = getPageId(json);
+                locale   = getLocale(json);
+                is_admin = getIsAdmin(json);
+                is_liked = getIsLiked(json);
+
+                cJSON_Delete(json);
+            }
+            free(base64decoded);
+        } else {
+            WSP(sp, SLT_VCL_error, "Could not allow enough memory to parse the signed_request!");
         }
-        cJSON_Delete(json);
     }
 
     req->app_data = strndup(app_data, strlen(app_data));
