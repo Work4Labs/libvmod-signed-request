@@ -260,7 +260,6 @@ const char *get_key(struct sess *sp, enum SIGNEDREQ_KEY key)
 
 static void vmodreq_free(struct w4uSignedRequest *req)
 {
-    syslog(6, "[TEST_LOG] {vmod_signed_request}: Calling vmodreq_free");
     CHECK_OBJ_NOTNULL(req, VMOD_SIGNED_MAGIC);
     free(req->app_data);
     free(req->page_id);
@@ -272,7 +271,6 @@ static void vmodreq_free(struct w4uSignedRequest *req)
 
 void vmod_free_all(struct sess *sp)
 {
-    syslog(6, "[TEST_LOG] {vmod_signed_request}: Calling vmod_free_all");
     struct w4uSignedRequest *req;
     req = vmodsigned_get_pointer(sp);
     if(req)
